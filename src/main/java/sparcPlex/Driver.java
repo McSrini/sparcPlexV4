@@ -204,6 +204,9 @@ public class Driver {
                 Map <Integer, List<NodeAttachment > > farmedNodes = new HashMap <Integer,List<NodeAttachment > > ();
                 JavaPairRDD<Integer, List<NodeAttachment >> farmedNodesRDD = frontier.mapPartitionsToPair(new NodePlucker (  nodesToPluckOut) , true);
                 farmedNodes = farmedNodesRDD.collectAsMap();
+                
+                //remove entries from map farmedNodes, if list of nodes farmed from the partition is empty
+                farmedNodes = removeEmptyLists(farmedNodes);
 
                 //STEP 4c : 
                 //*****************************************************************************************************************            
@@ -316,7 +319,15 @@ public class Driver {
         return node;
     }
     
-    
+    private static Map <Integer, List<NodeAttachment > > removeEmptyLists(Map <Integer, List<NodeAttachment > > farmedNodes){
+        Map <Integer, List<NodeAttachment > > filteredFarmedNodes = new HashMap <Integer,List<NodeAttachment > > ();
+        for(Entry <Integer, List<NodeAttachment > > entry :farmedNodes.entrySet()){
+            int key = entry.getKey();
+            List<NodeAttachment >  value = entry.getValue();
+            if(value !=null && value.size()>ZERO) filteredFarmedNodes.put(key, value);
+        }
+        return filteredFarmedNodes;
+    }
     
 }//end driver class
 
