@@ -21,6 +21,7 @@ import java.util.Map.Entry;
 
 import scala.Tuple2; 
 import cplexLib.dataTypes.SolutionComparator; 
+import heuristics.AveragingHeuristic;
 import static sparcPlex.constantsAndParams.Constants.*;
 import static sparcPlex.constantsAndParams.Parameters.*;
 import sparcPlex.functions.AttachmentConverter;
@@ -30,8 +31,7 @@ import sparcPlex.functions.NodePlucker;
 import sparcPlex.functions.PartitionKeyAdder;
 import sparcPlex.functions.PendingNodeMetaDataFetcher;
 import sparcPlex.functions.TreeCounter;
-import sparcPlex.intermediateDataTypes.SolverResult;
-import sparcPlex.loadbalancing.AveragingHeuristic;
+import sparcPlex.intermediateDataTypes.SolverResult; 
 
 /**
  *
@@ -92,6 +92,8 @@ public class Driver {
         //Recall that each NodeAttachmentMetadata has the subtree ID, and details about the node
         Map <Integer, List<NodeAttachmentMetadata> > perPartitionPendingNodesMap = new HashMap <Integer,List<NodeAttachmentMetadata> > ();
         //go out to the cluster and find now many unsolved kids each partition has
+        //
+        //SHOULD WE ALSO include unsolved subtree roots ? ToDo
         JavaPairRDD < Integer, List<NodeAttachmentMetadata>> perPartitionPendingNodesRDD = frontier.mapPartitionsToPair(new PendingNodeMetaDataFetcher(), true);
         //no need to cache the RDD as it is used only once
         perPartitionPendingNodesMap= perPartitionPendingNodesRDD.collectAsMap();
