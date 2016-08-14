@@ -172,6 +172,12 @@ public class Driver {
             }
             
             if (   isSolutionHalted) break;
+            
+            //STEP 2a :  
+            //*****************************************************************************************************************
+            //clean up trees from all partitions , which cannot beat the new incumbent  
+            //Filter out trees which have getBestObjValue inferior to incumbent
+            //This effects the perPartitionPendingNodesMap, as any unsolved children of discarded trees should no longer be in play
            
             
             //STEP 3 : 
