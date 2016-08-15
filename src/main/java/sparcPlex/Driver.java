@@ -24,13 +24,7 @@ import cplexLib.dataTypes.SolutionComparator;
 import heuristics.AveragingHeuristic;
 import static sparcPlex.constantsAndParams.Constants.*;
 import static sparcPlex.constantsAndParams.Parameters.*;
-import sparcPlex.functions.AttachmentConverter;
-import sparcPlex.functions.CplexBasedSolver;
-import sparcPlex.functions.NodeMerger;
-import sparcPlex.functions.NodePlucker;
-import sparcPlex.functions.PartitionKeyAdder;
-import sparcPlex.functions.PendingNodeMetaDataFetcher;
-import sparcPlex.functions.TreeCounter;
+import sparcPlex.functions.*;
 import sparcPlex.intermediateDataTypes.SolverResult; 
 
 /**
@@ -152,19 +146,14 @@ public class Driver {
                 
                 Solution solutionFromPartition =  solverResult.getSolution();
                 
-                if (  solutionFromPartition.isUnbounded()) {
-                     logger.info("Solution is unbounded, will exit.");
+                if (  solutionFromPartition.isUnbounded() || solutionFromPartition.isError()) {
+                     logger.info("Solution is unbounded or erroneous, will exit.");
                      isSolutionHalted= true;
                      //erroneous or unbounded solution overrides any existing solution
                      incumbent = solutionFromPartition;     
                      break;
                 }
-                if (  solutionFromPartition.isError()) {
-                     logger.error("Solution is in error, will exit.");
-                     isSolutionHalted= true;
-                     incumbent = solutionFromPartition;     
-                     break;
-                }                
+                             
                 if ( ZERO != (new SolutionComparator()).compare(incumbent, solutionFromPartition)){
                     //we have found a better solution
                     incumbent = solutionFromPartition;        
@@ -175,17 +164,20 @@ public class Driver {
             
             //STEP 2a :  
             //*****************************************************************************************************************
-            //clean up trees from all partitions , which cannot beat the new incumbent  
-            //Filter out trees which have getBestObjValue inferior to incumbent
-            //This effects the perPartitionPendingNodesMap, as any unsolved children of discarded trees should no longer be in play
-           
-            
+            //clean up trees from all partitions , which cannot beat the new incumbent  . In other words, filter
+            //out trees which have getBestObjValue inferior to incumbent.
+            //This effects the perPartitionPendingNodesMap. Any unsolved children of discarded trees should no longer be in play
+            List<String> inferiorTreeGuidsRemoved = new ArrayList<String>  ();
+            Collection<List<String>> removedTreeCollection= frontier.mapValues(new InferiorTreeFilter(incumbent.getObjectiveValue())).collectAsMap().values();
+            for (List<String> treeGuidsRemovedPerPartition  : removedTreeCollection){
+                inferiorTreeGuidsRemoved.addAll(treeGuidsRemovedPerPartition);
+            }
+                      
             //STEP 3 : 
             //*****************************************************************************************************************
-            // use the solutions found in this iteration to update the perPartitionPendingNodesMap  
-            
+            // use the solutions found in this iteration to update the perPartitionPendingNodesMap              
             for (Entry<Integer, SolverResult> entry   :resultsMap.entrySet()){
-                perPartitionPendingNodesMap.put ( entry.getKey(), entry.getValue().getNodeList() );
+               perPartitionPendingNodesMap.put ( entry.getKey(),filterPendingChildNodesFromInferiorTrees( entry.getValue().getNodeList(), inferiorTreeGuidsRemoved)  );
             }
             
             
@@ -335,6 +327,15 @@ public class Driver {
             if(value !=null && value.size()>ZERO) filteredFarmedNodes.put(key, value);
         }
         return filteredFarmedNodes;
+    }
+    
+    //get pending child nodes from node list, which do not belong to a removed tree
+    private static List<NodeAttachmentMetadata> filterPendingChildNodesFromInferiorTrees( List<NodeAttachmentMetadata> nodeList , List<String> inferiorTreeGuidsRemoved)  {
+        List<NodeAttachmentMetadata> result = new ArrayList<NodeAttachmentMetadata>();
+        for (NodeAttachmentMetadata metadata : nodeList) {
+            if (!inferiorTreeGuidsRemoved.contains(metadata.treeGuid)) result.add(metadata);
+        }
+        return result;
     }
     
 }//end driver class
